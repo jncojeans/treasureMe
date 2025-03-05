@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Plus, Building2, DollarSign, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import AddBankAccountModal from '../components/AddBankAccountModal';
 
 type BankAccount = {
   id: string;
@@ -14,30 +14,35 @@ type BankAccount = {
 };
 
 export default function BankAccounts() {
-  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const fetchAccounts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAccounts(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch accounts');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('bank_accounts')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setAccounts(data || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch accounts');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAccounts();
   }, []);
+
+  const handleAddSuccess = () => {
+    fetchAccounts();
+  };
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
@@ -46,7 +51,7 @@ export default function BankAccounts() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Bank Accounts</h1>
         <button 
-          onClick={() => navigate('/dashboard/bank-accounts/add')}
+          onClick={() => setIsAddModalOpen(true)}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Plus className="h-5 w-5 mr-2" />
@@ -150,6 +155,13 @@ export default function BankAccounts() {
           </table>
         </div>
       </div>
+
+      {/* Add Bank Account Modal */}
+      <AddBankAccountModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSuccess={handleAddSuccess}
+      />
     </div>
   );
 }

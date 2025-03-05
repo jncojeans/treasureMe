@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Building2, AlertCircle, Link2 } from 'lucide-react';
-import PlaidLink from '../components/PlaidLink';
+import PlaidLink from './PlaidLink';
+import Modal from './Modal';
 
 type AccountType = 'checking' | 'savings' | 'money_market' | 'cd' | 'other';
 
-export default function AddBankAccount() {
-  const navigate = useNavigate();
+interface AddBankAccountModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function AddBankAccountModal({ isOpen, onClose, onSuccess }: AddBankAccountModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +54,17 @@ export default function AddBankAccount() {
 
       if (insertError) throw insertError;
       
-      navigate('/dashboard/bank-accounts');
+      onSuccess();
+      onClose();
+      // Reset form
+      setFormData({
+        name: '',
+        bankName: '',
+        accountNumber: '',
+        routingNumber: '',
+        accountType: 'checking' as AccountType,
+        currency: 'USD'
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -57,37 +72,26 @@ export default function AddBankAccount() {
     }
   };
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Connect Bank Account</h1>
-      </div>
+  const handlePlaidSuccess = () => {
+    onSuccess();
+    onClose();
+  };
 
-      <div className="space-y-8">
-        {/* Plaid Connection Option */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Bank Account" size="lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border p-6">
           <div className="flex items-center space-x-3 mb-6 p-4 bg-green-50 rounded-lg">
             <Link2 className="h-6 w-6 text-green-600" />
-            <p className="text-green-700">Connect your bank account securely via Plaid</p>
+            <p className="text-green-700">Connect your bank account instantly</p>
           </div>
-          
-          <PlaidLink 
-            onSuccess={() => navigate('/dashboard/bank-accounts')}
-            onExit={() => console.log('Plaid connection exited')}
-          />
+          <p className="mb-6 text-gray-600">
+            Securely connect your bank account using Plaid. This is the fastest way to get started.
+          </p>
+          <PlaidLink onSuccess={handlePlaidSuccess} onExit={onClose} />
         </div>
 
-        <div className="relative py-4">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center">
-            <span className="px-4 bg-gray-100 text-sm text-gray-500">Or</span>
-          </div>
-        </div>
-
-        {/* Manual Entry Option */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="bg-white rounded-lg border p-6">
           <div className="flex items-center space-x-3 mb-6 p-4 bg-blue-50 rounded-lg">
             <Building2 className="h-6 w-6 text-blue-600" />
             <p className="text-blue-700">Enter your bank account details manually</p>
@@ -100,7 +104,7 @@ export default function AddBankAccount() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Account Name
@@ -191,10 +195,10 @@ export default function AddBankAccount() {
               </select>
             </div>
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-3 pt-2">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/bank-accounts')}
+                onClick={onClose}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
                 Cancel
@@ -210,6 +214,6 @@ export default function AddBankAccount() {
           </form>
         </div>
       </div>
-    </div>
+    </Modal>
   );
-}
+} 

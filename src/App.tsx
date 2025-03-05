@@ -15,7 +15,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import DashboardHome from './pages/DashboardHome';
 import BankAccounts from './pages/BankAccounts';
-import AddBankAccount from './pages/AddBankAccount';
 
 function App() {
   return (
@@ -23,7 +22,6 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
           <Route path="bank-accounts" element={<BankAccounts />} />
-          <Route path="bank-accounts/add" element={<AddBankAccount />} />
           {/* Other dashboard routes will be added here */}
         </Route>
         <Route path="/login" element={<Login />} />
