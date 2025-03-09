@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Building2, DollarSign, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Building2, DollarSign, PencilLine } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import AddBankAccountModal from '../components/AddBankAccountModal';
+import UpdateBalanceModal from '../components/UpdateBalanceModal';
 
 type BankAccount = {
   id: string;
@@ -11,17 +12,39 @@ type BankAccount = {
   balance: number;
   currency: string;
   account_type: string;
+  is_plaid: boolean;
+  updated_at: string;
 };
 
 export default function BankAccounts() {
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
 
-  const fetchAccounts = async () => {
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('bank_accounts')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setAccounts(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch accounts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAccounts();
+  }, []);
+
+  const handleBalanceUpdate = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('bank_accounts')
         .select('*')
@@ -30,18 +53,8 @@ export default function BankAccounts() {
       if (error) throw error;
       setAccounts(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch accounts');
-    } finally {
-      setLoading(false);
+      setError(err instanceof Error ? err.message : 'Failed to refresh accounts');
     }
-  };
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const handleAddSuccess = () => {
-    fetchAccounts();
   };
 
   const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
@@ -51,7 +64,7 @@ export default function BankAccounts() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Bank Accounts</h1>
         <button 
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => navigate('/dashboard/bank-accounts/add')}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Plus className="h-5 w-5 mr-2" />
@@ -125,6 +138,7 @@ export default function BankAccounts() {
                 <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Account Number</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Type</th>
                 <th className="text-right py-4 px-6 text-sm font-semibold text-gray-600">Balance</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Last Updated</th>
                 <th className="text-center py-4 px-6 text-sm font-semibold text-gray-600">Actions</th>
               </tr>
             </thead>
@@ -142,10 +156,20 @@ export default function BankAccounts() {
                       ${account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </span>
                   </td>
+                  <td className="py-4 px-6 text-gray-600">
+                    {new Date(account.updated_at).toLocaleString()}
+                  </td>
                   <td className="py-4 px-6">
                     <div className="flex justify-center">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600">
-                        <ExternalLink className="h-5 w-5" />
+                      <button
+                        onClick={() => !account.is_plaid && setSelectedAccount(account)}
+                        className={`p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-blue-600 ${
+                          account.is_plaid ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        disabled={account.is_plaid}
+                        title={account.is_plaid ? 'Plaid-connected accounts update automatically' : 'Update balance'}
+                      >
+                        <PencilLine className="h-5 w-5" />
                       </button>
                     </div>
                   </td>
@@ -155,13 +179,15 @@ export default function BankAccounts() {
           </table>
         </div>
       </div>
-
-      {/* Add Bank Account Modal */}
-      <AddBankAccountModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onSuccess={handleAddSuccess}
-      />
+      
+      {selectedAccount && (
+        <UpdateBalanceModal
+          accountId={selectedAccount.id}
+          currentBalance={selectedAccount.balance}
+          onClose={() => setSelectedAccount(null)}
+          onSuccess={handleBalanceUpdate}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { supabase } from '../lib/supabase';
-import { plaidApi } from '../lib/plaid';
+import { plaidClient } from '../lib/plaid';
 import { Link2, Loader2 } from 'lucide-react';
 
 interface PlaidLinkProps {
@@ -27,8 +27,15 @@ export default function PlaidLink({ onSuccess, onExit }: PlaidLinkProps) {
           throw new Error('No customer ID found');
         }
 
-        const response = await plaidApi.createLinkToken(customerData[0].customer_id);
-        setToken(response.link_token);
+        const response = await plaidClient.linkTokenCreate({
+          user: { client_user_id: customerData[0].customer_id },
+          client_name: 'TreasuryPro',
+          products: ['auth'],
+          country_codes: ['US'],
+          language: 'en',
+        });
+
+        setToken(response.data.link_token);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to initialize Plaid');
       } finally {
@@ -44,7 +51,9 @@ export default function PlaidLink({ onSuccess, onExit }: PlaidLinkProps) {
       setLoading(true);
       
       // Exchange public token for access token
-      const exchangeResponse = await plaidApi.exchangePublicToken(publicToken);
+      const exchangeResponse = await plaidClient.itemPublicTokenExchange({
+        public_token: publicToken,
+      });
 
       const { data: customerData } = await supabase
         .from('customer_users')
@@ -60,8 +69,8 @@ export default function PlaidLink({ onSuccess, onExit }: PlaidLinkProps) {
         .from('plaid_items')
         .insert({
           customer_id: customerData[0].customer_id,
-          plaid_item_id: exchangeResponse.item_id,
-          plaid_access_token: exchangeResponse.access_token,
+          plaid_item_id: exchangeResponse.data.item_id,
+          plaid_access_token: exchangeResponse.data.access_token,
           plaid_institution_id: metadata.institution.id,
           institution_name: metadata.institution.name,
         })
@@ -69,10 +78,12 @@ export default function PlaidLink({ onSuccess, onExit }: PlaidLinkProps) {
         .single();
 
       // Get account details
-      const accountsResponse = await plaidApi.getAccounts(exchangeResponse.access_token);
+      const accountsResponse = await plaidClient.accountsGet({
+        access_token: exchangeResponse.data.access_token,
+      });
 
       // Create bank accounts and link them to Plaid accounts
-      for (const account of accountsResponse.accounts) {
+      for (const account of accountsResponse.data.accounts) {
         const { data: bankAccount } = await supabase
           .from('bank_accounts')
           .insert({

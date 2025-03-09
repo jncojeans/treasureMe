@@ -9,6 +9,7 @@ import {
   Shield,
   Settings,
   Users,
+  ArrowDownUp,
   Building2,
   LogOut,
   Landmark
@@ -77,6 +78,19 @@ export default function Dashboard() {
                   isExpanded ? 'opacity-100' : 'opacity-0 hidden'
                 }`}>
                   Bank Accounts
+                </span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/dashboard/transactions"
+                className="flex items-center p-2 rounded-lg hover:bg-gray-100 text-gray-700 hover:text-blue-600"
+              >
+                <ArrowDownUp className="h-6 w-6" />
+                <span className={`ml-3 transition-opacity duration-300 ${
+                  isExpanded ? 'opacity-100' : 'opacity-0 hidden'
+                }`}>
+                  Transactions
                 </span>
               </Link>
             </li>
